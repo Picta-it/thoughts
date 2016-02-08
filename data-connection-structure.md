@@ -1,44 +1,40 @@
 # Data connection structure
 
 This document aim is to define a clean design pattern for data representation.
-The aim is to split the code in domain domains specific logics.
+The aim is to split the domain access in distinct layers.
 
-Like that, domain logic will be distinct of data access. And data access would not be merged with data mapping.
+This way, domain logic is separated from data access. And data is persisted to ease it's use on the domain layer.
 
-For this, we will separate the data structure in 4 layers :
+For this purpose, we will separate the data structure in 4 layers :
 
-- repository : domain logic
-- data mapper : data relationship
-- model : data encapsulation
-- datasource : data connection
+- persistence : Data persistence (repositoyr pattern)
+- mapper : Separation between software in-memory data and the database (datamapper pattern)
+- model : Data instanciation (factory pattern)
+- datasource : Data-source connection
 
-repository -> data mapper(model) -> datasource
+domain -> **repository -> data mapper(model) -> datasource** -> database
 
-The repository contains the domain logic. It accesses the data mapper that contains the relationships. It split the models in database entities depending on their relationships. Then store it into the database through datasources. 
+The repository contains the data persistence used by the domain layer. It accesses data through the data mapper and instanciate data with the model. 
+The datamapper accesses the database following the datasource interface.
 
 ## Repository
 
-The repository correspond to domain specific logic.
-It connects domain side to the dataMapper and so physically distinct data are mapped together for business.
+The repository correspond to data persistence logic. It connects domain side to physical data. It also instanciate data following a model to ease domain pattern job.
 
-It is agnostic of the datasource or data mapping.
+It is agnostic of the datasource. And use the model and the mapper following their interfaces.
 
 ```javascript
-form = {
-  saveForm : function(rawDomainForm) {},
-  getNationality : function() {},
-  triggerDistinctAction : function() {}
+Users = {
+  add : function(User, callback) {},
+  remove : function(User, callback) {},
+  findAll : function(callback) {},
+  update : function(user, updatedUser, callback, partial)
 }
 ```
-
-rawDomainForm may contain data such as User, Roles, etc.
-getNationality would give back user nationality.
-triggerDistinctAction would trigger a totally distinct action.
 
 ## Model
 
-Model correspond to data entities. Those data are at a logic state. They do not represent raw stored data nor domain data.
-This data encapsulate physical linked data.
+Model correspond to data entities. Those data are at a logic state. It does not represent raw stored data nor domain data. This data encapsulate physical linked data.
 
 ```javascript
 User = {
@@ -48,60 +44,29 @@ User = {
   "company" : {
     "name": "pbx",
     "address" : "..."
-  }
-}
-
-```
-
-## Data mapper
-
-Its responsability is to map model and datasources.
-
-```javascript
-users = Users.create(User)
-users = Users.read()
-users = Users.update(User, User_updates)
-users = Users.delete(User)
-```
-
-It is also responsible to map the raw data :
-
-```javascript
-User = {
-  "id" : ObjectId,
-  "name": "test",
-  "age" : 18,
-  "company" : {
-    "name": "pbx",
-    "address" : "..."
-  }
+  },
+  "getId": function(){},
+  "getName": function(){}
 }
 ```
 
-To a split database format :
+## Mapper
+
+Its responsability is to map data to the database using a datasource. It allow to persist and retrieve data.
 
 ```javascript
-User = {
-  "id" : ObjectId,
-  "name": "test",
-  "age" : 18,
-  "company" : ObjectId(2)
-}
-
-Company = {
-  "id" : ObjectId(2),
-  "name": "pbx",
-  "address" : "..."
-}
+userMapper.persist(User);
+userMapper.persist(id);
 ```
 
 ## Datasource
 
-Datasources correspond to data connections. They give a way to access and store data.
-It is the only part that know about database actions.
+The datasource corresponds to the data connections. It gives access to physical data.
+It is the only part that know about database actions such as SQL or NoSQL or the driver used to access data.
 
-This way, we will have tables/collections accesses such as create/read/update/delete on a collection.
-It maps the data to datasource specific format.
-
-Eg. Object to SQL queries
-
+```javascript
+mongoDS.create('User', User);
+mongoDS.read('User', 1);
+mongoDS.update('User', User);
+mongoDS.delete('User', User);
+```
